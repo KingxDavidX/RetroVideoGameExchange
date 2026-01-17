@@ -9,6 +9,10 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+
+    // ChatGPT assisted with TypeScript compiler configuration
+    // for decorator metadata and JSON module imports
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true
   },
 }

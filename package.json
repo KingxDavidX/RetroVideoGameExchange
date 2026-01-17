@@ -4,11 +4,15 @@
   "description": "",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "tsoa:spec": "tsoa spec",
+    "tsoa:routes": "tsoa routes",
+    "tsoa": "tsoa spec && tsoa routes"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.9",
+    "@types/swagger-ui-express": "^4.1.8",
     "typescript": "^5.9.3"
   },
   "private": true,
@@ -17,9 +21,13 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.2.1",
+    "joi": "^18.0.2",
     "mysql2": "^3.16.1",
     "reflect-metadata": "^0.2.2",
+    "swagger-ui-express": "^5.0.1",
+    "tsoa": "^7.0.0-alpha.0",
     "typeorm": "^0.3.28"
   }
 }

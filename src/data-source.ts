@@ -1,9 +1,10 @@
-import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { User } from "./model/User";
-import {Game} from "./model/Game";
+import { UserEntity } from "./entities/UserEntity";
+import { GameEntity } from "./entities/GameEntity";
 
 export const AppDataSource = new DataSource({
+    // ChatGPT assisted with diagnosing TypeORM connection lifecycle
+    // and resolving ConnectionNotFoundError via proper initialization
     type: "mysql",
     host: "localhost",
     port: 3306,
@@ -11,8 +12,8 @@ export const AppDataSource = new DataSource({
     password: "root",
     database: "game_exchange",
 
-    synchronize: true,  //Remove after implementation
+    synchronize: true,  //Remove after implementation, if this was ever to go into production
     logging: false,
 
-    entities: [User, Game],
+    entities: [UserEntity, GameEntity],
 });

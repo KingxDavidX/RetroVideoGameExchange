@@ -1,21 +1,42 @@
+// Citations were made by ChatGPT when used
+
+import "reflect-metadata";
+// ChatGPT assisted with identifying required reflect-metadata placement
+// for TypeOrm decorator metadata resolution
+
+import swaggerDocument from "./generated/swagger.json";
+// ChatGPT assisted with resolving ESM-compatible Swagger JSON imports
+// and TypeScript resolveJsonModule configuration
+
+import express from 'express';
+import swaggerUi from "swagger-ui-express";
 import { AppDataSource } from "./data-source";
-import express, { Request, Response } from 'express';
+import { RegisterRoutes } from "./generated/routes";
 
 const app = express();
 app.use(express.json());
 
+// ChatGPT assisted with restructuring app initialization to ensure
+// database connection is established before route registration
 AppDataSource.initialize()
     .then(() => {
-        console.log("AppDataSource initialized");
+        console.log("DB initialized");
+
+        RegisterRoutes(app);
+
+        app.use(
+            "/docs",
+            swaggerUi.serve,
+            swaggerUi.setup(swaggerDocument)
+        );
+        // ChatGPT assisted with Swagger UI Express integration
 
         app.listen(3000, () => {
-            console.log("server running on port 3000");
+            console.log("Server running on port 3000");
         });
     })
-    .catch((err) => {
-        console.log("Database connection error:", err);
-    });
+    .catch(console.error);
 
-app.get('/', (req: Request, res: Response) => {
-    res.send('Hello World!');
-});
+
+export default app;
+
