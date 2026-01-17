@@ -13,7 +13,12 @@ const userRepo = AppDataSource.getRepository(UserEntity);
 @Route("games")
 export class GameController extends Controller {
 
-    @Get("{gameId}")
+    @Get("{name}")
+    public async getGameByName(name: string): Promise<GameEntity> {
+        return gameRepo.findOneOrFail({ where: { name } });
+    }
+
+    @Get("by-name/{gameId}")
     public async getGameById(gameId: number): Promise<GameResponse> {
         const game = await gameRepo.findOneOrFail({
             where: { id: gameId },
