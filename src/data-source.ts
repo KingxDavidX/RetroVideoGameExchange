@@ -1,6 +1,7 @@
 import { DataSource } from "typeorm";
 import { UserEntity } from "./entities/UserEntity";
 import { GameEntity } from "./entities/GameEntity";
+import {TradeOfferEntity} from "./entities/TradeOfferEntity";
 
 export const AppDataSource = new DataSource({
     // ChatGPT assisted with diagnosing TypeORM connection lifecycle
@@ -15,5 +16,5 @@ export const AppDataSource = new DataSource({
     synchronize: true,  //Remove after implementation, if this was ever to go into production
     logging: false,
 
-    entities: [UserEntity, GameEntity],
+    entities: [UserEntity, GameEntity, TradeOfferEntity ],
 });
