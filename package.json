@@ -2,11 +2,13 @@
   "name": "retrovideogameexchange",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/src/app.js",
   "scripts": {
     "tsoa:spec": "tsoa spec",
     "tsoa:routes": "tsoa routes",
-    "tsoa": "tsoa spec && tsoa routes"
+    "tsoa": "tsoa spec && tsoa routes",
+    "build": "npm run tsoa && tsc",
+    "start": "npm run build && node dist/src/app.js"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",

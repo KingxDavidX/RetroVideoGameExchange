@@ -10,7 +10,7 @@ export function toGameResponse(game: GameEntity): GameResponse {
         system: game.system,
         condition: game.condition,
         links: {
-            self: `/games/${game.id}`,
+            self: `/games/by-name/${game.id}`,
             owner: `/users/${game.owner.id}`
         }
     };

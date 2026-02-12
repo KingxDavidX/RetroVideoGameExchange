@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post, Route } from "tsoa";
+import { Body, Controller, Get, Post, Request, Route } from "tsoa";
 import { CreateGameRequest } from "../models/CreateGameRequest";
 import { GameResponse } from "../models/GameResponse";
 import { AppDataSource } from "../data-source";
 import { UserEntity } from "../entities/UserEntity";
 import { GameEntity } from "../entities/GameEntity";
 import { toGameResponse } from "../mappers/GameMapper";
+import { AuthenticatedRequest, authenticateToken } from "../middleware/authMiddleware";
 
 const userRepo = AppDataSource.getRepository(UserEntity);
 const gameRepo = AppDataSource.getRepository(GameEntity);
@@ -18,8 +19,15 @@ export class UserGameController extends Controller{
     @Post()
     public async createGame(
         userId: number,
+        @Request() request: AuthenticatedRequest,
         @Body() body: CreateGameRequest
     ): Promise<GameResponse> {
+        const authUser = authenticateToken(request);
+        if (authUser.userId !== userId) {
+            this.setStatus(403);
+            throw new Error("You can only create games for your own account");
+        }
+
         // ChatGPT helped with this line, I had issues with userId and didn't realize I have to
         // set it to id.
         const user = await userRepo.findOneByOrFail({ id: userId });

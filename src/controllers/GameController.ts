@@ -1,21 +1,25 @@
-import { Controller, Get, Put, Patch, Delete, Route, Body } from "tsoa";
+import { Controller, Get, Put, Patch, Delete, Route, Body, Request } from "tsoa";
 import { GameEntity } from "../entities/GameEntity";
-import { UserEntity } from "../entities/UserEntity";
 import { AppDataSource } from "../data-source";
 import {GameResponse} from "../models/GameResponse";
 import {toGameResponse} from "../mappers/GameMapper";
 import {UpdateGameRequest} from "../models/UpdateGameRequest";
 import {PatchGameRequest} from "../models/PatchGameRequest";
+import { AuthenticatedRequest, authenticateToken } from "../middleware/authMiddleware";
 
 const gameRepo = AppDataSource.getRepository(GameEntity);
-const userRepo = AppDataSource.getRepository(UserEntity);
 
 @Route("games")
 export class GameController extends Controller {
 
     @Get("{name}")
-    public async getGameByName(name: string): Promise<GameEntity> {
-        return gameRepo.findOneOrFail({ where: { name } });
+    public async getGameByName(name: string): Promise<GameResponse> {
+        const game = await gameRepo.findOneOrFail({
+            where: { name },
+            relations: ["owner"]
+        });
+
+        return toGameResponse(game);
     }
 
     @Get("by-name/{gameId}")
@@ -30,11 +34,21 @@ export class GameController extends Controller {
     }
 
     @Put("{gameId}")
-    public async updateGame(gameId: number, @Body() body: UpdateGameRequest): Promise<GameResponse> {
+    public async updateGame(
+        gameId: number,
+        @Request() request: AuthenticatedRequest,
+        @Body() body: UpdateGameRequest
+    ): Promise<GameResponse> {
+        const authUser = authenticateToken(request);
         const game = await gameRepo.findOneOrFail({
             where: { id: gameId },
             relations: ["owner"]
         });
+
+        if (game.owner.id !== authUser.userId) {
+            this.setStatus(403);
+            throw new Error("You can only update your own games");
+        }
 
         game.name = body.name;
         game.publisher = body.publisher;
@@ -47,21 +61,24 @@ export class GameController extends Controller {
     }
 
     @Patch("{gameId}")
-    public async patchGame(gameId: number, @Body() body: PatchGameRequest): Promise<GameResponse> {
+    public async patchGame(
+        gameId: number,
+        @Request() request: AuthenticatedRequest,
+        @Body() body: PatchGameRequest
+    ): Promise<GameResponse> {
+        const authUser = authenticateToken(request);
         const game = await gameRepo.findOneOrFail({
             where: { id: gameId },
             relations: ["owner"]
         });
 
-        if (body.condition !== undefined) {
-            game.condition = body.condition;
+        if (game.owner.id !== authUser.userId) {
+            this.setStatus(403);
+            throw new Error("You can only update your own games");
         }
 
-        if (body.newOwnerId !== undefined) {
-            const newOwner = await userRepo.findOneByOrFail({
-                id: body.newOwnerId
-            });
-            game.owner = newOwner;
+        if (body.condition !== undefined) {
+            game.condition = body.condition;
         }
 
         await gameRepo.save(game);
@@ -69,12 +86,24 @@ export class GameController extends Controller {
     }
 
     @Delete("{gameId}")
-    public async deleteGame(gameId: number): Promise<void> {
+    public async deleteGame(
+        gameId: number,
+        @Request() request: AuthenticatedRequest
+    ): Promise<void> {
+        const authUser = authenticateToken(request);
+        const game = await gameRepo.findOneOrFail({
+            where: { id: gameId },
+            relations: ["owner"]
+        });
+
+        if (game.owner.id !== authUser.userId) {
+            this.setStatus(403);
+            throw new Error("You can only delete your own games");
+        }
+
         await gameRepo.delete(gameId);
 
         this.setStatus(204)
     }
 
 }
-
-

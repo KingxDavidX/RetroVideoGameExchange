@@ -7,8 +7,8 @@ export function toUserResponse(user: UserEntity): UserResponse {
         name: user.name,
         email: user.email,
         links: {
-            self: '/users/${user.id}',
-            gamesForSale: '/users/{$user.id}/games'
+            self: `/users/${user.id}`,
+            gamesForSale: `/users/${user.id}/games`
         }
     };
 }

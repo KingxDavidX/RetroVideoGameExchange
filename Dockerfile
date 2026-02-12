@@ -1,4 +1,4 @@
-FROM node:24-alpine
+FROM node:24-alpine AS build
 
 WORKDIR /app
 
@@ -11,10 +11,22 @@ COPY tsoa.json ./
 
 COPY src ./src
 
-RUN npm run tsoa
-RUN npx tsc
+RUN npm run build
 
-RUN npm prune --production
+FROM node:24-alpine AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package*.json ./
+
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+
+RUN chown -R node:node /app
+USER node
 
 EXPOSE 3000
 
