@@ -9,6 +9,10 @@ import { toTradeOfferResponse } from "../mappers/TradeOfferMapper";
 import {CreateTradeOfferRequest} from "../models/CreateTradeOfferRequest";
 import {UpdateTradeOfferStatusRequest} from "../models/UpdateTradeOfferStatusRequest";
 import {AuthenticatedRequest, authenticateToken} from "../middleware/authMiddleware";
+import {
+    NotificationEventType,
+    publishNotificationEvents
+} from "../services/NotificationEventPublisher";
 
 const tradeOfferRepo = AppDataSource.getRepository(TradeOfferEntity);
 const userRepo = AppDataSource.getRepository(UserEntity);
@@ -105,6 +109,37 @@ export class TradeOfferController extends Controller {
         await tradeOfferRepo.save(tradeOffer);
         this.setStatus(201);
 
+        await publishNotificationEvents([
+            {
+                eventType: NotificationEventType.TRADE_OFFER_CREATED,
+                recipientUserId: tradeOffer.offeredBy.id,
+                recipientEmail: tradeOffer.offeredBy.email,
+                payload: {
+                    tradeOfferId: tradeOffer.id,
+                    status: tradeOffer.status,
+                    offeredByUserId: tradeOffer.offeredBy.id,
+                    offeredToUserId: tradeOffer.offeredTo.id,
+                    gameRequestedId: tradeOffer.gameRequested.id,
+                    gameOfferedId: tradeOffer.gameOffered.id,
+                },
+                occurredAt: new Date().toISOString(),
+            },
+            {
+                eventType: NotificationEventType.TRADE_OFFER_CREATED,
+                recipientUserId: tradeOffer.offeredTo.id,
+                recipientEmail: tradeOffer.offeredTo.email,
+                payload: {
+                    tradeOfferId: tradeOffer.id,
+                    status: tradeOffer.status,
+                    offeredByUserId: tradeOffer.offeredBy.id,
+                    offeredToUserId: tradeOffer.offeredTo.id,
+                    gameRequestedId: tradeOffer.gameRequested.id,
+                    gameOfferedId: tradeOffer.gameOffered.id,
+                },
+                occurredAt: new Date().toISOString(),
+            }
+        ]);
+
         return toTradeOfferResponse(tradeOffer);
     }
 
@@ -150,6 +185,44 @@ export class TradeOfferController extends Controller {
         }
 
         await tradeOfferRepo.save(tradeOffer);
+
+        if (tradeOffer.status === TradeOfferStatus.ACCEPTED || tradeOffer.status === TradeOfferStatus.REJECTED) {
+            const eventType = tradeOffer.status === TradeOfferStatus.ACCEPTED
+                ? NotificationEventType.TRADE_OFFER_ACCEPTED
+                : NotificationEventType.TRADE_OFFER_REJECTED;
+
+            await publishNotificationEvents([
+                {
+                    eventType,
+                    recipientUserId: tradeOffer.offeredBy.id,
+                    recipientEmail: tradeOffer.offeredBy.email,
+                    payload: {
+                        tradeOfferId: tradeOffer.id,
+                        status: tradeOffer.status,
+                        offeredByUserId: tradeOffer.offeredBy.id,
+                        offeredToUserId: tradeOffer.offeredTo.id,
+                        gameRequestedId: tradeOffer.gameRequested.id,
+                        gameOfferedId: tradeOffer.gameOffered.id,
+                    },
+                    occurredAt: new Date().toISOString(),
+                },
+                {
+                    eventType,
+                    recipientUserId: tradeOffer.offeredTo.id,
+                    recipientEmail: tradeOffer.offeredTo.email,
+                    payload: {
+                        tradeOfferId: tradeOffer.id,
+                        status: tradeOffer.status,
+                        offeredByUserId: tradeOffer.offeredBy.id,
+                        offeredToUserId: tradeOffer.offeredTo.id,
+                        gameRequestedId: tradeOffer.gameRequested.id,
+                        gameOfferedId: tradeOffer.gameOffered.id,
+                    },
+                    occurredAt: new Date().toISOString(),
+                }
+            ]);
+        }
+
         return toTradeOfferResponse(tradeOffer);
     }
 
@@ -178,4 +251,3 @@ export class TradeOfferController extends Controller {
 
 
 }
-

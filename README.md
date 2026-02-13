@@ -18,6 +18,9 @@ docker run --rm -p 3000:3000 \
   -e DB_PASSWORD=root \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
+  -e KAFKA_BROKERS="kafka:9092" \
+  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
 
@@ -38,8 +41,28 @@ docker run --rm -p 3000:3000 \
   -e DB_PASSWORD=root \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
+  -e KAFKA_BROKERS="kafka:9092" \
+  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
+
+## Environment Variables
+
+Required for API + DB:
+
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `JWT_SECRET`
+
+Kafka notification stream:
+
+- `KAFKA_BROKERS` (required to publish notifications, comma-separated)
+- `KAFKA_NOTIFICATION_TOPIC` (optional, default: `email-notifications`)
+- `KAFKA_CLIENT_ID` (optional, default: `retro-game-exchange-api`)
 
 ## Docker MySQL Examples
 
@@ -66,6 +89,9 @@ docker run --rm -p 3000:3000 \
   -e DB_PASSWORD=root \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
+  -e KAFKA_BROKERS="kafka:9092" \
+  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
 
@@ -96,5 +122,30 @@ docker run --rm -p 3000:3000 --network game-net \
   -e DB_PASSWORD=root \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
+  -e KAFKA_BROKERS="kafka:9092" \
+  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
+  retro-game-exchange:latest
+```
+
+## Kafka on the Same Docker Network
+
+If Kafka is running in a container on the same Docker network as your API, set:
+
+- `KAFKA_BROKERS="<kafka-container-name>:<kafka-port>"`
+
+Example (Kafka container named `kafka` on `game-net`):
+
+```bash
+docker run --rm -p 3000:3000 --network game-net \
+  -e DB_HOST=mysql-db \
+  -e DB_PORT=3306 \
+  -e DB_USER=root \
+  -e DB_PASSWORD=root \
+  -e DB_NAME=game_exchange \
+  -e JWT_SECRET="replace-with-your-secret" \
+  -e KAFKA_BROKERS="kafka:9092" \
+  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```

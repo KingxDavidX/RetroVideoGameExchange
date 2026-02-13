@@ -10,6 +10,11 @@ import { LoginRequest } from "../models/LoginRequest";
 import { AuthResponse } from "../models/AuthResponse";
 import { generateToken } from "../utils/jwt";
 import { AuthenticatedRequest, authenticateToken } from "../middleware/authMiddleware";
+import { ChangePasswordRequest } from "../models/ChangePasswordRequest";
+import {
+    NotificationEventType,
+    publishNotificationEvents
+} from "../services/NotificationEventPublisher";
 
 
 const userRepo = AppDataSource.getRepository(UserEntity);
@@ -114,6 +119,39 @@ export class UserController extends Controller {
         return toUserResponse(user);
     }
 
+    @Patch("me/password")
+    public async changeCurrentUserPassword(
+        @Request() request: AuthenticatedRequest,
+        @Body() body: ChangePasswordRequest
+    ): Promise<void> {
+        const authUser = authenticateToken(request);
+        const user = await userRepo.findOneByOrFail({ id: authUser.userId });
+
+        const isValidPassword = await verifyPassword(body.currentPassword, user.passwordHash);
+        if (!isValidPassword) {
+            this.setStatus(401);
+            throw new Error("Invalid current password");
+        }
+
+        user.passwordHash = await hashPassword(body.newPassword);
+        await userRepo.save(user);
+
+        await publishNotificationEvents([
+            {
+                eventType: NotificationEventType.PASSWORD_CHANGED,
+                recipientUserId: user.id,
+                recipientEmail: user.email,
+                payload: {
+                    userId: user.id,
+                    email: user.email,
+                },
+                occurredAt: new Date().toISOString(),
+            },
+        ]);
+
+        this.setStatus(204);
+    }
+
     // This is my old code for patch,
     // this does not have any type of auth
     // @Patch('{id}')
@@ -147,4 +185,3 @@ export class UserController extends Controller {
     // }
 
 }
-
