@@ -24,7 +24,8 @@ const brokers = (process.env.KAFKA_BROKERS || "")
     .map((broker) => broker.trim())
     .filter((broker) => broker.length > 0);
 
-const topic = process.env.KAFKA_NOTIFICATION_TOPIC || "email-notifications";
+const userTopic = process.env.KAFKA_USER_TOPIC || "user";
+const offersTopic = process.env.KAFKA_OFFERS_TOPIC || "offers";
 const clientId = process.env.KAFKA_CLIENT_ID || "retro-game-exchange-api";
 
 let producer: KafkaProducer | null = null;
@@ -32,8 +33,6 @@ let producerConnectPromise: Promise<void> | null = null;
 
 function loadKafkaProducer(): KafkaProducer | null {
     try {
-        // Optional runtime dependency: install `kafkajs` to enable publishing.
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { Kafka } = require("kafkajs") as {
             Kafka: new (args: { clientId: string; brokers: string[] }) => {
                 producer: () => KafkaProducer;
@@ -80,11 +79,26 @@ export async function publishNotificationEvents(events: NotificationEvent[]): Pr
         return;
     }
 
-    await kafkaProducer.send({
-        topic,
-        messages: events.map((event) => ({
-            key: String(event.recipientUserId),
-            value: JSON.stringify(event),
-        })),
-    });
+    const userEvents = events.filter((event) => event.eventType === NotificationEventType.PASSWORD_CHANGED);
+    const offerEvents = events.filter((event) => event.eventType !== NotificationEventType.PASSWORD_CHANGED);
+
+    if (userEvents.length > 0) {
+        await kafkaProducer.send({
+            topic: userTopic,
+            messages: userEvents.map((event) => ({
+                key: String(event.recipientUserId),
+                value: JSON.stringify(event),
+            })),
+        });
+    }
+
+    if (offerEvents.length > 0) {
+        await kafkaProducer.send({
+            topic: offersTopic,
+            messages: offerEvents.map((event) => ({
+                key: String(event.recipientUserId),
+                value: JSON.stringify(event),
+            })),
+        });
+    }
 }

@@ -14,7 +14,7 @@ import { ChangePasswordRequest } from "../models/ChangePasswordRequest";
 import {
     NotificationEventType,
     publishNotificationEvents
-} from "../services/NotificationEventPublisher";
+} from "../services/Publisher";
 
 
 const userRepo = AppDataSource.getRepository(UserEntity);

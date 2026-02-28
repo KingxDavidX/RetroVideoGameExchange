@@ -19,7 +19,8 @@ docker run --rm -p 3000:3000 \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
   -e KAFKA_BROKERS="kafka:9092" \
-  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_USER_TOPIC="user" \
+  -e KAFKA_OFFERS_TOPIC="offers" \
   -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
@@ -42,7 +43,8 @@ docker run --rm -p 3000:3000 \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
   -e KAFKA_BROKERS="kafka:9092" \
-  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_USER_TOPIC="user" \
+  -e KAFKA_OFFERS_TOPIC="offers" \
   -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
@@ -61,7 +63,8 @@ Required for API + DB:
 Kafka notification stream:
 
 - `KAFKA_BROKERS` (required to publish notifications, comma-separated)
-- `KAFKA_NOTIFICATION_TOPIC` (optional, default: `email-notifications`)
+- `KAFKA_USER_TOPIC` (optional, default: `user`)
+- `KAFKA_OFFERS_TOPIC` (optional, default: `offers`)
 - `KAFKA_CLIENT_ID` (optional, default: `retro-game-exchange-api`)
 
 ## Docker MySQL Examples
@@ -90,7 +93,8 @@ docker run --rm -p 3000:3000 \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
   -e KAFKA_BROKERS="kafka:9092" \
-  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_USER_TOPIC="user" \
+  -e KAFKA_OFFERS_TOPIC="offers" \
   -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
@@ -123,7 +127,8 @@ docker run --rm -p 3000:3000 --network game-net \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
   -e KAFKA_BROKERS="kafka:9092" \
-  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_USER_TOPIC="user" \
+  -e KAFKA_OFFERS_TOPIC="offers" \
   -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```
@@ -145,7 +150,8 @@ docker run --rm -p 3000:3000 --network game-net \
   -e DB_NAME=game_exchange \
   -e JWT_SECRET="replace-with-your-secret" \
   -e KAFKA_BROKERS="kafka:9092" \
-  -e KAFKA_NOTIFICATION_TOPIC="email-notifications" \
+  -e KAFKA_USER_TOPIC="user" \
+  -e KAFKA_OFFERS_TOPIC="offers" \
   -e KAFKA_CLIENT_ID="retro-game-exchange-api" \
   retro-game-exchange:latest
 ```

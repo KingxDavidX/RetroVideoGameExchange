@@ -12,7 +12,7 @@ import {AuthenticatedRequest, authenticateToken} from "../middleware/authMiddlew
 import {
     NotificationEventType,
     publishNotificationEvents
-} from "../services/NotificationEventPublisher";
+} from "../services/Publisher";
 
 const tradeOfferRepo = AppDataSource.getRepository(TradeOfferEntity);
 const userRepo = AppDataSource.getRepository(UserEntity);
