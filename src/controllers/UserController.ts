@@ -3,7 +3,7 @@ import { CreateUserRequest } from "../models/CreateUserRequest";
 import { UserResponse } from "../models/UserResponse";
 import { UserEntity } from "../entities/UserEntity";
 import { hashPassword, verifyPassword } from "../utils/Password";
-import { toUserResponse } from "../mappers/userMapper";
+import { toUserResponse } from "../mappers/UserMapper";
 import { AppDataSource } from "../data-source";
 import { PatchUserRequest } from "../models/PatchUserRequest";
 import { LoginRequest } from "../models/LoginRequest";
@@ -15,6 +15,7 @@ import {
     NotificationEventType,
     publishNotificationEvents
 } from "../services/Publisher";
+import { CacheService } from "../services/CacheService";
 
 
 const userRepo = AppDataSource.getRepository(UserEntity);
@@ -58,7 +59,17 @@ export class UserController extends Controller {
 
     @Post("login")
     public async login(@Body() body: LoginRequest ): Promise<AuthResponse> {
-        const user = await userRepo.findOne({ where: { email: body.email } });
+        // Try to get from cache
+        const cachedUser = await CacheService.get<UserEntity>(CacheService.userByEmailKey(body.email));
+        let user = cachedUser;
+
+        if (!user) {
+            user = await userRepo.findOne({ where: { email: body.email } });
+            if (user) {
+                await CacheService.set(CacheService.userByEmailKey(body.email), user);
+                await CacheService.set(CacheService.userKey(user.id), user);
+            }
+        }
 
         if(!user) {
             this.setStatus(401);
@@ -89,7 +100,15 @@ export class UserController extends Controller {
     @Get("me")
     public async getCurrentUser(@Request() request: AuthenticatedRequest): Promise<UserResponse> {
         const authUser = authenticateToken(request);
-        const user = await userRepo.findOneByOrFail({ id: authUser.userId });
+
+        const cachedUser = await CacheService.get<UserEntity>(CacheService.userKey(authUser.userId));
+        let user = cachedUser;
+
+        if (!user) {
+            user = await userRepo.findOneByOrFail({ id: authUser.userId });
+            await CacheService.set(CacheService.userKey(user.id), user);
+        }
+
         return toUserResponse(user);
     }
 
@@ -98,7 +117,14 @@ export class UserController extends Controller {
     // is delete this.
     @Get('{id}')
     public async getUser(id: number): Promise<UserResponse> {
-        const user = await userRepo.findOneByOrFail({ id });
+        const cachedUser = await CacheService.get<UserEntity>(CacheService.userKey(id));
+        let user = cachedUser;
+
+        if (!user) {
+            user = await userRepo.findOneByOrFail({ id });
+            await CacheService.set(CacheService.userKey(user.id), user);
+        }
+
         return toUserResponse(user);
     }
 
@@ -116,6 +142,10 @@ export class UserController extends Controller {
         }
 
         await userRepo.save(user);
+
+        // Invalidate cache
+        await CacheService.invalidateUser(user.id);
+
         return toUserResponse(user);
     }
 
@@ -135,6 +165,8 @@ export class UserController extends Controller {
 
         user.passwordHash = await hashPassword(body.newPassword);
         await userRepo.save(user);
+
+        await CacheService.invalidateUser(user.id);
 
         await publishNotificationEvents([
             {
@@ -174,6 +206,9 @@ export class UserController extends Controller {
     public async deleteCurrentUser(@Request() request: AuthenticatedRequest): Promise<void> {
         const authUser = authenticateToken(request);
         await userRepo.delete(authUser.userId);
+
+        await CacheService.invalidateUser(authUser.userId);
+
         this.setStatus(204);
     }
 

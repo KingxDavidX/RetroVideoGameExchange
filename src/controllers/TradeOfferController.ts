@@ -13,6 +13,7 @@ import {
     NotificationEventType,
     publishNotificationEvents
 } from "../services/Publisher";
+import { CacheService } from "../services/CacheService";
 
 const tradeOfferRepo = AppDataSource.getRepository(TradeOfferEntity);
 const userRepo = AppDataSource.getRepository(UserEntity);
@@ -23,47 +24,65 @@ const gameRepo = AppDataSource.getRepository(GameEntity);
 export class TradeOfferController extends Controller {
 
     @Get()
-    public async getTradeOffers( @Request() request: AuthenticatedRequest, @Query() userId?: number, @Query() status?: TradeOfferStatus ): Promise<TradeOfferResponse[]> {
-        authenticateToken(request);
+    public async getTradeOffers( @Request() request: AuthenticatedRequest, @Query() status?: TradeOfferStatus ): Promise<TradeOfferResponse[]> {
+        const authUser = authenticateToken(request);
+        const userId = authUser.userId;
 
-        const queryBuilder = tradeOfferRepo.createQueryBuilder("tradeOffer")
-            .leftJoinAndSelect("tradeOffer.offeredBy", "offeredBy")
-            .leftJoinAndSelect("tradeOffer.offeredTo", "offeredTo")
-            .leftJoinAndSelect("tradeOffer.gameOffered", "gameOffered")
-            .leftJoinAndSelect("gameOffered.owner", "offeredOwner")
-            .leftJoinAndSelect("tradeOffer.gameRequested", "gameRequested")
-            .leftJoinAndSelect("gameRequested.owner", "requestedOwner");
+        // Try to get from cache
+        const cacheKey = CacheService.tradeOffersKey(userId, status);
+        const cachedTradeOffers = await CacheService.get<TradeOfferEntity[]>(cacheKey);
+        let tradeOffers = cachedTradeOffers;
 
-        if (userId) {
-            queryBuilder.andWhere(
-                "(tradeOffer.offeredById = :userId OR tradeOffer.offeredToId = :userId)",
-                { userId }
-            );
+        if (!tradeOffers) {
+            const queryBuilder = tradeOfferRepo.createQueryBuilder("tradeOffer")
+                .leftJoinAndSelect("tradeOffer.offeredBy", "offeredBy")
+                .leftJoinAndSelect("tradeOffer.offeredTo", "offeredTo")
+                .leftJoinAndSelect("tradeOffer.gameOffered", "gameOffered")
+                .leftJoinAndSelect("gameOffered.owner", "offeredOwner")
+                .leftJoinAndSelect("tradeOffer.gameRequested", "gameRequested")
+                .leftJoinAndSelect("gameRequested.owner", "requestedOwner")
+                .where(
+                    "(tradeOffer.offeredById = :userId OR tradeOffer.offeredToId = :userId)",
+                    { userId }
+                );
+
+            if (status) {
+                queryBuilder.andWhere("tradeOffer.status = :status", { status });
+            }
+
+            tradeOffers = await queryBuilder.getMany();
+            await CacheService.set(cacheKey, tradeOffers);
         }
 
-        if (status) {
-            queryBuilder.andWhere("tradeOffer.status = :status", { status });
-        }
-
-        const tradeOffers = await queryBuilder.getMany();
         return tradeOffers.map(toTradeOfferResponse);
     }
 
     @Get("{id}")
     public async getTradeOffer(@Request() request: AuthenticatedRequest, @Path() id: number): Promise<TradeOfferResponse> {
-        authenticateToken(request);
+        const authUser = authenticateToken(request);
 
-        const tradeOffer = await tradeOfferRepo.findOneOrFail({
-            where: { id },
-            relations: [
-                "offeredBy",
-                "offeredTo",
-                "gameOffered",
-                "gameOffered.owner",
-                "gameRequested",
-                "gameRequested.owner"
-            ]
-        });
+        const cachedTradeOffer = await CacheService.get<TradeOfferEntity>(CacheService.tradeOfferKey(id));
+        let tradeOffer = cachedTradeOffer;
+
+        if (!tradeOffer) {
+            tradeOffer = await tradeOfferRepo.findOneOrFail({
+                where: { id },
+                relations: [
+                    "offeredBy",
+                    "offeredTo",
+                    "gameOffered",
+                    "gameOffered.owner",
+                    "gameRequested",
+                    "gameRequested.owner"
+                ]
+            });
+            await CacheService.set(CacheService.tradeOfferKey(id), tradeOffer);
+        }
+
+        if (tradeOffer.offeredBy.id !== authUser.userId && tradeOffer.offeredTo.id !== authUser.userId) {
+            this.setStatus(403);
+            throw new Error("You can only view trade offers you are part of");
+        }
 
         return toTradeOfferResponse(tradeOffer);
     }
@@ -108,6 +127,9 @@ export class TradeOfferController extends Controller {
 
         await tradeOfferRepo.save(tradeOffer);
         this.setStatus(201);
+
+        // Invalidate all trade offers cache
+        await CacheService.invalidateAllTradeOffers();
 
         await publishNotificationEvents([
             {
@@ -182,9 +204,16 @@ export class TradeOfferController extends Controller {
             gameRequested.owner = originalOfferedOwner;
 
             await gameRepo.save([gameOffered, gameRequested]);
+
+            // Invalidate game caches
+            await CacheService.invalidateGame(gameOffered.id);
+            await CacheService.invalidateGame(gameRequested.id);
         }
 
         await tradeOfferRepo.save(tradeOffer);
+
+        // Invalidate trade offer caches
+        await CacheService.invalidateTradeOffer(id);
 
         if (tradeOffer.status === TradeOfferStatus.ACCEPTED || tradeOffer.status === TradeOfferStatus.REJECTED) {
             const eventType = tradeOffer.status === TradeOfferStatus.ACCEPTED
@@ -246,6 +275,9 @@ export class TradeOfferController extends Controller {
         }
 
         await tradeOfferRepo.delete(id);
+
+        await CacheService.invalidateTradeOffer(id);
+
         this.setStatus(204);
     }
 

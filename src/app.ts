@@ -18,6 +18,7 @@ import {
 } from "prom-client";
 import { AppDataSource } from "./data-source";
 import { RegisterRoutes } from "./generated/routes";
+import { redisClient } from "./redis-client";
 
 const app = express();
 app.use(express.json());
@@ -89,9 +90,13 @@ app.get("/metrics", async (_req, res) => {
 
 // ChatGPT assisted with restructuring app initialization to ensure
 // database connection is established before route registration
-AppDataSource.initialize()
+Promise.all([
+    AppDataSource.initialize(),
+    redisClient.connect()
+])
     .then(() => {
         console.log("DB initialized");
+        console.log("Redis connected");
 
         RegisterRoutes(app);
 

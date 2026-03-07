@@ -8,6 +8,7 @@ import {PatchGameRequest} from "../models/PatchGameRequest";
 import { AuthenticatedRequest, authenticateToken } from "../middleware/authMiddleware";
 import { CreateGameRequest } from "../models/CreateGameRequest";
 import { UserEntity } from "../entities/UserEntity";
+import { CacheService } from "../services/CacheService";
 
 const gameRepo = AppDataSource.getRepository(GameEntity);
 const userRepo = AppDataSource.getRepository(UserEntity);
@@ -33,26 +34,39 @@ export class GameController extends Controller {
 
         this.setStatus(201);
         await gameRepo.save(game);
+        await CacheService.invalidateGameLists();
         return toGameResponse(game);
     }
 
     @Get("{name}")
     public async getGameByName(name: string): Promise<GameResponse[]> {
-        const games = await gameRepo.find({
-            where: { name },
-            relations: ["owner"]
-        });
+        // Try to get from cache
+        const cachedGames = await CacheService.get<GameEntity[]>(CacheService.gamesByNameKey(name));
+        let games = cachedGames;
+
+        if (!games) {
+            games = await gameRepo.find({
+                where: { name },
+                relations: ["owner"]
+            });
+            await CacheService.set(CacheService.gamesByNameKey(name), games);
+        }
 
         return games.map(toGameResponse);
     }
 
     @Get("by-name/{gameId}")
     public async getGameById(gameId: number): Promise<GameResponse> {
-        const game = await gameRepo.findOneOrFail({
-            where: { id: gameId },
-            relations: ["owner"]
-        });
+        const cachedGame = await CacheService.get<GameEntity>(CacheService.gameKey(gameId));
+        let game = cachedGame;
 
+        if (!game) {
+            game = await gameRepo.findOneOrFail({
+                where: { id: gameId },
+                relations: ["owner"]
+            });
+            await CacheService.set(CacheService.gameKey(gameId), game);
+        }
 
         return toGameResponse(game);
     }
@@ -81,6 +95,10 @@ export class GameController extends Controller {
         game.condition = body.condition;
 
         await gameRepo.save(game);
+
+        // Invalidate cache
+        await CacheService.invalidateGame(gameId);
+
         return toGameResponse(game);
     }
 
@@ -106,6 +124,9 @@ export class GameController extends Controller {
         }
 
         await gameRepo.save(game);
+
+        await CacheService.invalidateGame(gameId);
+
         return toGameResponse(game);
     }
 
@@ -126,6 +147,8 @@ export class GameController extends Controller {
         }
 
         await gameRepo.delete(gameId);
+
+        await CacheService.invalidateGame(gameId);
 
         this.setStatus(204)
     }
